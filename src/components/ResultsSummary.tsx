@@ -6,7 +6,7 @@ import { getComplianceStats, calculateSPRSScore, generateRecommendations } from 
 import ProgressBar from './ProgressBar';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { FileDown, FilePdf } from 'lucide-react';
+import { FileDown, FileText } from 'lucide-react';
 
 interface ResultsSummaryProps {
   results: AssessmentResult[];
@@ -165,7 +165,7 @@ const ResultsSummary: React.FC<ResultsSummaryProps> = ({
           size="lg"
           className="bg-cyber-blue hover:bg-cyber-blue/90 shadow-lg btn-hover-effect"
         >
-          <FilePdf className="mr-2 h-4 w-4" />
+          <FileText className="mr-2 h-4 w-4" />
           Export PDF Report
         </Button>
       </div>

@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ResultsSummary from '@/components/ResultsSummary';
@@ -12,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { getControlWeight } from '@/utils/sprsWeights';
 import { generatePDFReport } from '@/utils/pdfGenerator';
+import { FileDown, FileText } from 'lucide-react';
 
 const Results = () => {
   const [assessment, setAssessment] = useState<Assessment | null>(null);
@@ -261,7 +263,7 @@ ${result.evidence ? `Evidence: ${result.evidence}` : ''}
                 size="lg"
                 className="bg-cyber-blue hover:bg-cyber-blue/90 shadow-lg btn-hover-effect"
               >
-                <FilePdf className="mr-2 h-4 w-4" />
+                <FileText className="mr-2 h-4 w-4" />
                 Export PDF Report
               </Button>
             </div>
