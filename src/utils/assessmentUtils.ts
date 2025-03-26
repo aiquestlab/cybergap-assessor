@@ -4,9 +4,9 @@ import { getControlWeight, getMaxSPRSScore } from './sprsWeights';
 
 // Calculate the SPRS score based on assessment results
 export const calculateSPRSScore = (results: AssessmentResult[]): number => {
-  if (results.length === 0) return 0;
+  if (results.length === 0) return getMaxSPRSScore();
   
-  // Start with the maximum score
+  // Start with the maximum score (110)
   const maxScore = getMaxSPRSScore();
   
   // Calculate deductions for non-compliant and partially-compliant controls
@@ -29,7 +29,7 @@ export const calculateSPRSScore = (results: AssessmentResult[]): number => {
   });
   
   // Calculate final score
-  const finalScore = Math.max(0, maxScore - deductions);
+  const finalScore = maxScore - deductions;
   
   // Round to nearest integer
   return Math.round(finalScore);

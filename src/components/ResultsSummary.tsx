@@ -31,6 +31,7 @@ const ResultsSummary: React.FC<ResultsSummaryProps> = ({
   const getScoreColor = (score: number) => {
     if (score >= 80) return 'text-cyber-green';
     if (score >= 50) return 'text-cyber-yellow';
+    if (score >= 0) return 'text-cyber-yellow/80';
     return 'text-cyber-red';
   };
   
@@ -40,7 +41,8 @@ const ResultsSummary: React.FC<ResultsSummaryProps> = ({
     if (score >= 80) return 'B';
     if (score >= 70) return 'C';
     if (score >= 60) return 'D';
-    return 'F';
+    if (score >= 0) return 'F';
+    return 'F-';
   };
   
   return (
@@ -68,6 +70,9 @@ const ResultsSummary: React.FC<ResultsSummaryProps> = ({
               </div>
               <div className="text-sm text-gray-500 mt-2">
                 CMMC Level {level} Assessment
+              </div>
+              <div className="text-xs text-gray-400 mt-1">
+                Range: -203 to 110
               </div>
             </div>
           </CardContent>

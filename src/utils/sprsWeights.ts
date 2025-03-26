@@ -277,5 +277,5 @@ export const getControlWeight = (cmmcControlId: string): number => {
 
 // Get the maximum possible SPRS score
 export const getMaxSPRSScore = (): number => {
-  return 110; // Max score starts at 110
+  return 110; // Max score is 110
 };
