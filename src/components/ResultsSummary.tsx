@@ -6,19 +6,22 @@ import { getComplianceStats, calculateSPRSScore, generateRecommendations } from 
 import ProgressBar from './ProgressBar';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { FileDown, FilePdf } from 'lucide-react';
 
 interface ResultsSummaryProps {
   results: AssessmentResult[];
   level: 1 | 2;
   organizationName: string;
   onExport?: () => void;
+  onExportPdf?: () => void;
 }
 
 const ResultsSummary: React.FC<ResultsSummaryProps> = ({
   results,
   level,
   organizationName,
-  onExport
+  onExport,
+  onExportPdf
 }) => {
   const stats = getComplianceStats(results);
   const sprsScore = calculateSPRSScore(results);
@@ -145,14 +148,25 @@ const ResultsSummary: React.FC<ResultsSummaryProps> = ({
         </CardContent>
       </Card>
       
-      {/* Export Button */}
-      <div className="flex justify-center mt-8">
+      {/* Export Buttons */}
+      <div className="flex justify-center mt-8 gap-4">
         <Button 
           onClick={onExport} 
           size="lg"
+          variant="outline"
+          className="shadow-md btn-hover-effect"
+        >
+          <FileDown className="mr-2 h-4 w-4" />
+          Export Text Report
+        </Button>
+        
+        <Button 
+          onClick={onExportPdf} 
+          size="lg"
           className="bg-cyber-blue hover:bg-cyber-blue/90 shadow-lg btn-hover-effect"
         >
-          Export SPRS Report
+          <FilePdf className="mr-2 h-4 w-4" />
+          Export PDF Report
         </Button>
       </div>
     </div>

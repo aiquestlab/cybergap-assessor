@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ResultsSummary from '@/components/ResultsSummary';
@@ -11,6 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
+import { getControlWeight } from '@/utils/sprsWeights';
+import { generatePDFReport } from '@/utils/pdfGenerator';
 
 const Results = () => {
   const [assessment, setAssessment] = useState<Assessment | null>(null);
@@ -18,7 +19,6 @@ const Results = () => {
   const navigate = useNavigate();
   
   useEffect(() => {
-    // Retrieve assessment from sessionStorage
     const storedAssessment = sessionStorage.getItem('assessment');
     
     if (!storedAssessment) {
@@ -44,7 +44,6 @@ const Results = () => {
   const handleExport = () => {
     if (!assessment) return;
     
-    // Create a simple text report - in a real app, this would generate a PDF
     const reportDate = new Date().toLocaleDateString();
     const reportContent = `
 CMMC ASSESSMENT REPORT
@@ -71,8 +70,10 @@ CONTROL DETAILS
 --------------
 ${assessment.results.map(result => {
   const control = getControlById(result.controlId);
+  const weight = getControlWeight(result.controlId);
   return `
 ${result.controlId} - ${control?.title}
+Weight: ${weight}
 Status: ${result.status}
 ${result.notes ? `Notes: ${result.notes}` : ''}
 ${result.evidence ? `Evidence: ${result.evidence}` : ''}
@@ -80,7 +81,6 @@ ${result.evidence ? `Evidence: ${result.evidence}` : ''}
 }).join('\n')}
 `;
 
-    // Create and download text file
     const blob = new Blob([reportContent], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -91,7 +91,19 @@ ${result.evidence ? `Evidence: ${result.evidence}` : ''}
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     
-    toast.success('Report downloaded successfully');
+    toast.success('Text report downloaded successfully');
+  };
+  
+  const handleExportPdf = () => {
+    if (!assessment) return;
+    
+    try {
+      generatePDFReport(assessment);
+      toast.success('PDF report generated successfully');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Error generating PDF report');
+    }
   };
   
   if (!assessment) {
@@ -174,6 +186,7 @@ ${result.evidence ? `Evidence: ${result.evidence}` : ''}
               level={assessment.level}
               organizationName={assessment.organizationName}
               onExport={handleExport}
+              onExportPdf={handleExportPdf}
             />
           </TabsContent>
           
@@ -190,6 +203,8 @@ ${result.evidence ? `Evidence: ${result.evidence}` : ''}
                       
                       if (!result) return null;
                       
+                      const weight = getControlWeight(control.id);
+                      
                       return (
                         <div key={control.id} className="py-4 px-6 hover:bg-gray-50 transition-colors">
                           <div className="flex flex-col md:flex-row md:justify-between md:items-center">
@@ -197,6 +212,9 @@ ${result.evidence ? `Evidence: ${result.evidence}` : ''}
                               <div className="flex items-center gap-2 mb-1">
                                 <span className="text-xs bg-cyber-blue/10 text-cyber-blue rounded-full px-2 py-0.5">
                                   {control.id}
+                                </span>
+                                <span className="text-xs bg-gray-100 text-gray-700 rounded-full px-2 py-0.5">
+                                  Weight: {weight}
                                 </span>
                               </div>
                               <h4 className="font-medium">{control.title}</h4>
@@ -227,13 +245,24 @@ ${result.evidence ? `Evidence: ${result.evidence}` : ''}
               </Card>
             ))}
             
-            <div className="flex justify-center mt-8">
+            <div className="flex justify-center mt-8 gap-4">
               <Button 
                 onClick={handleExport} 
                 size="lg"
+                variant="outline"
+                className="shadow-md btn-hover-effect"
+              >
+                <FileDown className="mr-2 h-4 w-4" />
+                Export Text Report
+              </Button>
+              
+              <Button 
+                onClick={handleExportPdf} 
+                size="lg"
                 className="bg-cyber-blue hover:bg-cyber-blue/90 shadow-lg btn-hover-effect"
               >
-                Export SPRS Report
+                <FilePdf className="mr-2 h-4 w-4" />
+                Export PDF Report
               </Button>
             </div>
           </TabsContent>

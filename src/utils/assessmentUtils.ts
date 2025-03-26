@@ -1,27 +1,38 @@
 
-import { AssessmentResult, Assessment } from './cmmcData';
+import { AssessmentResult, Assessment, getControlById } from './cmmcData';
+import { getControlWeight, getMaxSPRSScore } from './sprsWeights';
 
 // Calculate the SPRS score based on assessment results
 export const calculateSPRSScore = (results: AssessmentResult[]): number => {
   if (results.length === 0) return 0;
   
-  // Count compliant controls
-  const compliantCount = results.filter(r => r.status === 'compliant').length;
+  // Start with the maximum score
+  const maxScore = getMaxSPRSScore();
   
-  // Count partially-compliant controls (count as 0.5)
-  const partiallyCompliantCount = results.filter(r => r.status === 'partially-compliant').length;
+  // Calculate deductions for non-compliant and partially-compliant controls
+  let deductions = 0;
   
-  // Count not-applicable controls (exclude from calculation)
-  const notApplicableCount = results.filter(r => r.status === 'not-applicable').length;
+  results.forEach(result => {
+    // Skip not-applicable controls
+    if (result.status === 'not-applicable') return;
+    
+    // Get the weight for this control
+    const weight = getControlWeight(result.controlId);
+    
+    // Apply deductions based on compliance status
+    if (result.status === 'non-compliant') {
+      deductions += weight;
+    } else if (result.status === 'partially-compliant') {
+      deductions += weight / 2; // Half deduction for partially-compliant
+    }
+    // No deduction for compliant controls
+  });
   
-  // Calculate total applicable controls
-  const totalApplicableControls = results.length - notApplicableCount;
+  // Calculate final score
+  const finalScore = Math.max(0, maxScore - deductions);
   
-  if (totalApplicableControls === 0) return 0;
-  
-  // Calculate SPRS score (scaled to 110 for full CMMC level 2)
-  const rawScore = (compliantCount + (partiallyCompliantCount * 0.5)) / totalApplicableControls;
-  return Math.round(rawScore * 100);
+  // Round to nearest integer
+  return Math.round(finalScore);
 };
 
 // Create a new assessment
@@ -75,14 +86,19 @@ export const getComplianceStats = (results: AssessmentResult[]) => {
   const partiallyCompliant = results.filter(r => r.status === 'partially-compliant').length;
   const notApplicable = results.filter(r => r.status === 'not-applicable').length;
   
+  const applicableControls = totalControls - notApplicable;
+  const compliancePercentage = applicableControls > 0 
+    ? Math.round((compliant / applicableControls) * 100) 
+    : 0;
+  
   return {
     totalControls,
     compliant,
     nonCompliant,
     partiallyCompliant,
     notApplicable,
-    applicableControls: totalControls - notApplicable,
-    compliancePercentage: Math.round((compliant / (totalControls - notApplicable)) * 100) || 0
+    applicableControls,
+    compliancePercentage
   };
 };
 
@@ -90,33 +106,65 @@ export const getComplianceStats = (results: AssessmentResult[]) => {
 export const generateRecommendations = (results: AssessmentResult[]): string[] => {
   const recommendations: string[] = [];
   
-  // Example recommendations based on control IDs
-  const nonCompliantIds = results
+  // Get non-compliant controls sorted by weight (highest first)
+  const nonCompliantControls = results
     .filter(r => r.status === 'non-compliant')
-    .map(r => r.controlId);
+    .map(r => ({
+      id: r.controlId,
+      weight: getControlWeight(r.controlId),
+      control: getControlById(r.controlId)
+    }))
+    .sort((a, b) => b.weight - a.weight);
   
-  if (nonCompliantIds.includes('AC.1.001') || nonCompliantIds.includes('AC.1.002')) {
-    recommendations.push("Implement role-based access control (RBAC) system to limit access to authorized users");
+  // Generate domain-specific recommendations
+  const accessControlIds = nonCompliantControls
+    .filter(c => c.control?.domain === 'Access Control')
+    .map(c => c.id);
+  
+  if (accessControlIds.length > 0) {
+    recommendations.push("Implement robust access control mechanisms including role-based access controls (RBAC) and least privilege principles");
   }
   
-  if (nonCompliantIds.includes('IA.1.076') || nonCompliantIds.includes('IA.1.077')) {
-    recommendations.push("Implement multi-factor authentication for all user access");
+  const identificationIds = nonCompliantControls
+    .filter(c => c.control?.domain === 'Identification and Authentication')
+    .map(c => c.id);
+  
+  if (identificationIds.length > 0) {
+    recommendations.push("Strengthen identification and authentication controls, including multi-factor authentication implementation");
   }
   
-  if (nonCompliantIds.includes('SC.1.175') || nonCompliantIds.includes('SC.1.176')) {
-    recommendations.push("Deploy network monitoring tools and implement network segmentation");
+  const systemProtectionIds = nonCompliantControls
+    .filter(c => c.control?.domain === 'System and Communications Protection')
+    .map(c => c.id);
+  
+  if (systemProtectionIds.length > 0) {
+    recommendations.push("Enhance system and communications protection through network segmentation and encryption of sensitive data");
   }
   
-  if (nonCompliantIds.includes('SI.1.210') || nonCompliantIds.includes('SI.1.211')) {
-    recommendations.push("Deploy enterprise-grade antivirus/anti-malware solution");
+  const systemIntegrityIds = nonCompliantControls
+    .filter(c => c.control?.domain === 'System and Information Integrity')
+    .map(c => c.id);
+  
+  if (systemIntegrityIds.length > 0) {
+    recommendations.push("Improve system integrity controls including malware protection, system monitoring, and timely patching");
   }
+  
+  // Generate specific recommendations for high-weight controls
+  const highWeightControls = nonCompliantControls.filter(c => c.weight >= 5);
+  
+  highWeightControls.forEach(c => {
+    if (c.control) {
+      recommendations.push(`Address high-priority control ${c.id}: ${c.control.title}`);
+    }
+  });
   
   // Add generic recommendations if few specific ones were generated
-  if (recommendations.length < 3 && nonCompliantIds.length > 0) {
+  if (recommendations.length < 3 && nonCompliantControls.length > 0) {
     recommendations.push("Develop and implement a comprehensive security policy");
     recommendations.push("Conduct regular security awareness training for all employees");
     recommendations.push("Perform regular vulnerability assessments and penetration testing");
   }
   
-  return recommendations;
+  // Return unique recommendations, limited to top 6
+  return [...new Set(recommendations)].slice(0, 6);
 };
