@@ -4,9 +4,10 @@
 
 export { 
   controlIdMapping,
-  ControlWeight,
   controlWeights,
   getControlWeight,
   getMaxSPRSScore,
   getMinSPRSScore
 } from './sprs';
+
+export type { ControlWeight } from './sprs';

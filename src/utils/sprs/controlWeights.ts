@@ -1,6 +1,6 @@
 
 // Define the ControlWeight interface
-export interface ControlWeight {
+export type ControlWeight = {
   controlId: string;
   weight: number;
 }
