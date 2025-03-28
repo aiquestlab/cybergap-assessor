@@ -28,22 +28,69 @@ const CMMCDataImporter: React.FC<CMMCDataImporterProps> = ({ onImport }) => {
 
   const handleImport = () => {
     try {
-      // Parse the JSON data
-      let parsedData: ExtendedControl[] = JSON.parse(jsonData);
+      // Clean the JSON data - remove potential problematic characters
+      let cleanedData = jsonData.trim();
       
-      // If it's not an array, check if it's an object with a property that's an array
-      if (!Array.isArray(parsedData)) {
-        // Try to find an array property in the object
-        const arrayProp = Object.values(parsedData).find(val => Array.isArray(val));
-        if (arrayProp && Array.isArray(arrayProp)) {
-          parsedData = arrayProp as ExtendedControl[];
+      // Try to fix common JSON issues
+      // Remove trailing commas (common issue)
+      cleanedData = cleanedData.replace(/,\s*([\]}])/g, '$1');
+      
+      // Remove single-line comments (not valid in JSON but common in JS)
+      cleanedData = cleanedData.replace(/\/\/.*$/gm, '');
+      
+      // Remove multi-line comments
+      cleanedData = cleanedData.replace(/\/\*[\s\S]*?\*\//g, '');
+      
+      // Attempt to parse the cleaned data
+      let parsedData: ExtendedControl[] | Record<string, unknown>;
+      
+      try {
+        parsedData = JSON.parse(cleanedData);
+      } catch (jsonError) {
+        // If still fails, let's try to be even more lenient
+        // Sometimes there might be a data assignment like: const data = [...];
+        const arrayMatch = cleanedData.match(/\[\s*\{[\s\S]*\}\s*\]/);
+        if (arrayMatch) {
+          try {
+            parsedData = JSON.parse(arrayMatch[0]);
+          } catch (innerError) {
+            throw jsonError; // If this also fails, throw the original error
+          }
         } else {
-          throw new Error("Couldn't find an array in the imported data");
+          throw jsonError;
         }
       }
       
+      // Convert to array if it's not already
+      let controlsArray: ExtendedControl[];
+      
+      if (!Array.isArray(parsedData)) {
+        // It's an object, try to find an array property
+        const arrayProps = Object.values(parsedData).filter(val => Array.isArray(val));
+        
+        if (arrayProps.length > 0) {
+          // Use the first array property found
+          controlsArray = arrayProps[0] as ExtendedControl[];
+        } else {
+          throw new Error("Couldn't find an array of controls in the imported data");
+        }
+      } else {
+        controlsArray = parsedData;
+      }
+      
+      // Validate that these look like controls
+      if (controlsArray.length === 0) {
+        throw new Error("No controls found in the imported data");
+      }
+      
+      // Basic validation of the first item
+      const firstItem = controlsArray[0];
+      if (!firstItem.cmmcId || !firstItem.domain || !firstItem.name) {
+        throw new Error("The imported data doesn't appear to be in the expected format");
+      }
+      
       // Convert to simple controls for the app
-      const simpleControls: Control[] = parsedData.map(control => convertToSimpleControl(control));
+      const simpleControls: Control[] = controlsArray.map(control => convertToSimpleControl(control));
       
       // Call the onImport callback
       onImport(simpleControls);
@@ -59,6 +106,11 @@ const CMMCDataImporter: React.FC<CMMCDataImporterProps> = ({ onImport }) => {
   const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const data = e.clipboardData.getData('text');
     setJsonData(data);
+  };
+
+  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setJsonData(e.target.value);
+    setError(null); // Clear error when text changes
   };
 
   return (
@@ -80,7 +132,7 @@ const CMMCDataImporter: React.FC<CMMCDataImporterProps> = ({ onImport }) => {
               placeholder="Paste JSON data here..." 
               className="min-h-[300px]"
               value={jsonData} 
-              onChange={(e) => setJsonData(e.target.value)}
+              onChange={handleTextareaChange}
               onPaste={handlePaste}
             />
             
