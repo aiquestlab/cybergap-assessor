@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,7 +20,6 @@ import { toast } from 'sonner';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import CMMCDataImporter from '@/components/CMMCDataImporter';
-import { Control } from '@/utils/cmmcData';
 
 const Assessment = () => {
   const { level } = useParams<{ level: string }>();
@@ -125,7 +125,6 @@ const Assessment = () => {
     console.log('Imported controls:', importedControls);
     
     toast({
-      title: "Import Successful",
       description: `Imported ${importedControls.length} CMMC controls.`,
     });
   };
