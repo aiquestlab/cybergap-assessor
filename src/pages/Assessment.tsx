@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,6 +18,8 @@ import ProgressBar from '@/components/ProgressBar';
 import { toast } from 'sonner';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import CMMCDataImporter from '@/components/CMMCDataImporter';
+import { Control } from '@/utils/cmmcData';
 
 const Assessment = () => {
   const { level } = useParams<{ level: string }>();
@@ -33,7 +34,6 @@ const Assessment = () => {
   const [scrollY, setScrollY] = useState(0);
   const topRef = useRef<HTMLDivElement>(null);
   
-  // Check if level is valid
   useEffect(() => {
     if (level !== '1' && level !== '2') {
       navigate('/');
@@ -41,7 +41,6 @@ const Assessment = () => {
     }
   }, [level, navigate]);
   
-  // Initialize controls and assessment
   useEffect(() => {
     const levelControls = getControlsByLevel(cmmcLevel);
     setControls(levelControls);
@@ -54,20 +53,17 @@ const Assessment = () => {
       setActiveTab(domains[0]);
     }
     
-    // Initialize assessment
     const controlIds = levelControls.map(control => control.id);
     const newAssessment = createAssessment(cmmcLevel, organizationName, controlIds);
     setAssessment(newAssessment);
   }, [cmmcLevel]);
   
-  // Set active tab when domains are loaded
   useEffect(() => {
     if (domains.length > 0 && !activeTab) {
       setActiveTab(domains[0]);
     }
   }, [domains, activeTab]);
   
-  // Track scroll position for "back to top" button
   useEffect(() => {
     const handleScroll = () => {
       setScrollY(window.scrollY);
@@ -116,7 +112,6 @@ const Assessment = () => {
       return;
     }
     
-    // Store assessment in sessionStorage for results page
     sessionStorage.setItem('assessment', JSON.stringify(assessment));
     navigate('/results');
     toast.success('Assessment completed successfully!');
@@ -124,6 +119,15 @@ const Assessment = () => {
   
   const scrollToTop = () => {
     topRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+  
+  const handleImportControls = (importedControls: Control[]) => {
+    console.log('Imported controls:', importedControls);
+    
+    toast({
+      title: "Import Successful",
+      description: `Imported ${importedControls.length} CMMC controls.`,
+    });
   };
   
   if (!assessment || domains.length === 0) {
@@ -260,6 +264,10 @@ const Assessment = () => {
           </Tabs>
         </div>
       </main>
+      
+      <div className="mb-6">
+        <CMMCDataImporter onImport={handleImportControls} />
+      </div>
       
       {scrollY > 300 && (
         <Button

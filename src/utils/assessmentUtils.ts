@@ -1,6 +1,6 @@
-
 import { AssessmentResult, Assessment, getControlById } from './cmmcData';
 import { getControlWeight, getMaxSPRSScore } from './sprs';
+import { ExtendedControl, AssessmentCriterion } from './cmmcControlsData';
 
 // Calculate the SPRS score based on assessment results
 export const calculateSPRSScore = (results: AssessmentResult[]): number => {
@@ -167,4 +167,16 @@ export const generateRecommendations = (results: AssessmentResult[]): string[] =
   
   // Return unique recommendations, limited to top 6
   return [...new Set(recommendations)].slice(0, 6);
+};
+
+// Add function to get extended control data if available
+export const getExtendedControlData = (controlId: string): ExtendedControl | null => {
+  try {
+    // This is where you would fetch from your extended controls data source
+    // For now, return null as we don't have the full data loaded yet
+    return null;
+  } catch (error) {
+    console.error('Error fetching extended control data:', error);
+    return null;
+  }
 };
