@@ -1,6 +1,6 @@
 
 import { AssessmentResult, Assessment, getControlById } from './cmmcData';
-import { getControlWeight, getMaxSPRSScore } from './sprsWeights';
+import { getControlWeight, getMaxSPRSScore } from './sprs';
 
 // Calculate the SPRS score based on assessment results
 export const calculateSPRSScore = (results: AssessmentResult[]): number => {
