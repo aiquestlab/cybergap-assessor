@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AssessmentResult } from '@/utils/cmmcData';
@@ -7,6 +6,7 @@ import ProgressBar from './ProgressBar';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { FileDown, FileText } from 'lucide-react';
+import ComplianceDonutChart from './ComplianceDonutChart';
 
 interface ResultsSummaryProps {
   results: AssessmentResult[];
@@ -26,7 +26,7 @@ const ResultsSummary: React.FC<ResultsSummaryProps> = ({
   const stats = getComplianceStats(results);
   const sprsScore = calculateSPRSScore(results);
   const recommendations = generateRecommendations(results);
-  
+
   // Determine SPRS score color
   const getScoreColor = (score: number) => {
     if (score >= 80) return 'text-cyber-green';
@@ -47,6 +47,21 @@ const ResultsSummary: React.FC<ResultsSummaryProps> = ({
   
   return (
     <div className="space-y-8 w-full max-w-5xl mx-auto">
+      {/* NEW: Compliance Donut Chart section */}
+      <Card className="mb-2 glass-card px-0 py-2">
+        <CardHeader className="pb-0">
+          <CardTitle>Compliance Breakdown</CardTitle>
+          <CardDescription>A visual summary of your compliance status</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ComplianceDonutChart
+            compliant={stats.compliant}
+            partiallyCompliant={stats.partiallyCompliant}
+            nonCompliant={stats.nonCompliant}
+            notApplicable={stats.notApplicable}
+          />
+        </CardContent>
+      </Card>
       <div className="flex flex-col md:flex-row gap-6">
         {/* SPRS Score Card */}
         <Card className="flex-1 glass-card overflow-hidden">
