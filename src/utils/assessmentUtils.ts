@@ -102,6 +102,68 @@ export const getComplianceStats = (results: AssessmentResult[]) => {
   };
 };
 
+// NEW: type for SPRS breakdown
+export interface SPRSDeduction {
+  controlId: string;
+  title: string;
+  status: 'non-compliant' | 'partially-compliant';
+  deduction: number;
+}
+
+export interface SPRSBreakdown {
+  maxScore: number;
+  totalDeductions: number;
+  finalScore: number;
+  topDeductions: SPRSDeduction[];
+}
+
+// NEW: function to get SPRS score breakdown
+export const getSPRSScoreBreakdown = (results: AssessmentResult[]): SPRSBreakdown => {
+  const maxScore = getMaxSPRSScore();
+  let totalDeductionsValue = 0;
+
+  const allDeductions: SPRSDeduction[] = [];
+
+  results.forEach(result => {
+    if (result.status === 'not-applicable' || result.status === 'compliant') return;
+
+    const weight = getControlWeight(result.controlId);
+    const control = getControlById(result.controlId);
+    let deduction = 0;
+
+    if (result.status === 'non-compliant') {
+      deduction = weight;
+    } else if (result.status === 'partially-compliant') {
+      // This is consistent with the existing calculateSPRSScore function
+      deduction = weight / 2;
+    }
+    
+    totalDeductionsValue += deduction;
+
+    if (deduction > 0) {
+      allDeductions.push({
+        controlId: result.controlId,
+        title: control?.title || 'Unknown Control',
+        status: result.status,
+        deduction: deduction,
+      });
+    }
+  });
+
+  const finalScore = maxScore - totalDeductionsValue;
+
+  const topDeductions = allDeductions
+    .sort((a, b) => b.deduction - a.deduction)
+    .slice(0, 5);
+
+  return {
+    maxScore,
+    totalDeductions: Math.round(totalDeductionsValue),
+    finalScore: Math.round(finalScore),
+    topDeductions,
+  };
+};
+
 // Generate recommendations based on non-compliant controls
 export const generateRecommendations = (results: AssessmentResult[]): string[] => {
   const recommendations: string[] = [];

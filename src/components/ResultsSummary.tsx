@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AssessmentResult } from '@/utils/cmmcData';
-import { getComplianceStats, calculateSPRSScore, generateRecommendations } from '@/utils/assessmentUtils';
+import { getComplianceStats, calculateSPRSScore, generateRecommendations, getSPRSScoreBreakdown } from '@/utils/assessmentUtils';
 import ProgressBar from './ProgressBar';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -27,6 +27,7 @@ const ResultsSummary: React.FC<ResultsSummaryProps> = ({
 }) => {
   const stats = getComplianceStats(results);
   const sprsScore = calculateSPRSScore(results);
+  const sprsBreakdown = getSPRSScoreBreakdown(results);
   const recommendations = generateRecommendations(results);
 
   // Determine SPRS score color
@@ -65,9 +66,9 @@ const ResultsSummary: React.FC<ResultsSummaryProps> = ({
           />
         </CardContent>
       </Card>
-      <div className="flex flex-col md:flex-row gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* SPRS Score Card */}
-        <Card className="flex-1 glass-card overflow-hidden">
+        <Card className="glass-card overflow-hidden">
           <CardHeader className="pb-2">
             <CardTitle>SPRS Score</CardTitle>
             <CardDescription>Supplier Performance Risk System</CardDescription>
@@ -97,7 +98,7 @@ const ResultsSummary: React.FC<ResultsSummaryProps> = ({
         </Card>
         
         {/* Compliance Summary Card */}
-        <Card className="flex-1 glass-card">
+        <Card className="glass-card">
           <CardHeader className="pb-2">
             <CardTitle>Compliance Summary</CardTitle>
             <CardDescription>{organizationName}</CardDescription>
@@ -147,6 +148,49 @@ const ResultsSummary: React.FC<ResultsSummaryProps> = ({
                 <div className="text-xs text-gray-500">
                   Total controls: {stats.totalControls} ({stats.notApplicable} marked as N/A)
                 </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        {/* NEW: SPRS Score Breakdown Card */}
+        <Card className="glass-card">
+          <CardHeader className="pb-2">
+            <CardTitle>SPRS Score Breakdown</CardTitle>
+            <CardDescription>Top contributing factors</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3 py-2">
+              <div className="flex justify-between items-baseline">
+                <span className="text-sm font-medium">Max Score</span>
+                <span className="font-bold text-lg">{sprsBreakdown.maxScore}</span>
+              </div>
+              <div className="flex justify-between items-baseline">
+                <span className="text-sm font-medium">Total Deductions</span>
+                <span className="font-bold text-lg text-cyber-red">-{sprsBreakdown.totalDeductions}</span>
+              </div>
+              <div className="flex justify-between items-baseline pt-2 border-t">
+                <span className="text-sm font-bold">Final Score</span>
+                <span className={cn('font-bold text-xl', getScoreColor(sprsScore))}>{sprsBreakdown.finalScore}</span>
+              </div>
+
+              <div className="pt-3">
+                <h4 className="text-sm font-semibold mb-2">Top 5 Deductions:</h4>
+                <ul className="space-y-2 text-xs">
+                  {sprsBreakdown.topDeductions.length > 0 ? (
+                    sprsBreakdown.topDeductions.map(item => (
+                      <li key={item.controlId} className="flex justify-between items-center gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">{item.controlId}</span>
+                          <span className="truncate" title={item.title}>{item.title}</span>
+                        </div>
+                        <span className="font-semibold text-cyber-red ml-2">-{item.deduction}</span>
+                      </li>
+                    ))
+                  ) : (
+                    <li className="text-gray-500">No deductions. Perfect score!</li>
+                  )}
+                </ul>
               </div>
             </div>
           </CardContent>
