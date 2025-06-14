@@ -14,6 +14,7 @@ interface ResultsSummaryProps {
   organizationName: string;
   onExport?: () => void;
   onExportPdf?: () => void;
+  onStatusSelect?: (status: AssessmentResult['status']) => void;
 }
 
 const ResultsSummary: React.FC<ResultsSummaryProps> = ({
@@ -21,7 +22,8 @@ const ResultsSummary: React.FC<ResultsSummaryProps> = ({
   level,
   organizationName,
   onExport,
-  onExportPdf
+  onExportPdf,
+  onStatusSelect,
 }) => {
   const stats = getComplianceStats(results);
   const sprsScore = calculateSPRSScore(results);
@@ -59,6 +61,7 @@ const ResultsSummary: React.FC<ResultsSummaryProps> = ({
             partiallyCompliant={stats.partiallyCompliant}
             nonCompliant={stats.nonCompliant}
             notApplicable={stats.notApplicable}
+            onStatusSelect={onStatusSelect}
           />
         </CardContent>
       </Card>

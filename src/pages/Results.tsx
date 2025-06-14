@@ -1,8 +1,7 @@
-
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ResultsSummary from '@/components/ResultsSummary';
-import { Assessment } from '@/utils/cmmcData';
+import { Assessment, AssessmentResult } from '@/utils/cmmcData';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getControlsByLevel, getControlById } from '@/utils/cmmcData';
@@ -13,11 +12,12 @@ import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { getControlWeight } from '@/utils/sprsWeights';
 import { generatePDFReport } from '@/utils/pdfGenerator';
-import { FileDown, FileText } from 'lucide-react';
+import { FileDown, FileText, X, Filter } from 'lucide-react';
 
 const Results = () => {
   const [assessment, setAssessment] = useState<Assessment | null>(null);
   const [activeTab, setActiveTab] = useState('summary');
+  const [statusFilter, setStatusFilter] = useState<AssessmentResult['status'] | null>(null);
   const navigate = useNavigate();
   
   useEffect(() => {
@@ -41,6 +41,15 @@ const Results = () => {
   
   const handleStartNew = () => {
     navigate('/');
+  };
+
+  const handleStatusSelect = (status: AssessmentResult['status']) => {
+    setStatusFilter(status);
+    setActiveTab('details');
+  };
+
+  const clearFilter = () => {
+    setStatusFilter(null);
   };
   
   const handleExport = () => {
@@ -128,15 +137,22 @@ ${result.evidence ? `Evidence: ${result.evidence}` : ''}
     return acc;
   }, {} as Record<string, typeof controls>);
   
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'compliant': return 'bg-cyber-green/10 text-cyber-green border-cyber-green/30';
-      case 'non-compliant': return 'bg-cyber-red/10 text-cyber-red border-cyber-red/30';
-      case 'partially-compliant': return 'bg-cyber-yellow/10 text-cyber-yellow border-cyber-yellow/30';
-      case 'not-applicable': return 'bg-gray-200 text-gray-600 border-gray-300';
-      default: return 'bg-gray-100 text-gray-600 border-gray-200';
-    }
-  };
+  const filteredDomainGroups = Object.entries(domainGroups)
+    .map(([domain, domainControls]) => {
+      const filteredControls = domainControls.filter(control => {
+        if (!statusFilter) return true;
+        const result = assessment.results.find(r => r.controlId === control.id);
+        return result?.status.toLowerCase() === statusFilter.toLowerCase();
+      });
+      return [domain, filteredControls] as [string, typeof domainControls];
+    })
+    .filter(([_, filteredControls]) => filteredControls.length > 0);
+  
+  const getStatusLabel = (status: string | null): string => {
+    if (!status) return '';
+    const label = status.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    return label;
+  }
   
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -189,63 +205,91 @@ ${result.evidence ? `Evidence: ${result.evidence}` : ''}
               organizationName={assessment.organizationName}
               onExport={handleExport}
               onExportPdf={handleExportPdf}
+              onStatusSelect={handleStatusSelect}
             />
           </TabsContent>
           
           <TabsContent value="details" className="animate-fade-in space-y-6">
-            {Object.entries(domainGroups).map(([domain, domainControls]) => (
-              <Card key={domain} className="mb-6 overflow-hidden">
-                <CardHeader className="pb-3 bg-gray-50">
-                  <CardTitle className="text-lg font-medium">{domain}</CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <div className="divide-y">
-                    {domainControls.map(control => {
-                      const result = assessment.results.find(r => r.controlId === control.id);
-                      
-                      if (!result) return null;
-                      
-                      const weight = getControlWeight(control.id);
-                      
-                      return (
-                        <div key={control.id} className="py-4 px-6 hover:bg-gray-50 transition-colors">
-                          <div className="flex flex-col md:flex-row md:justify-between md:items-center">
-                            <div className="flex-1 mb-2 md:mb-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="text-xs bg-cyber-blue/10 text-cyber-blue rounded-full px-2 py-0.5">
-                                  {control.id}
-                                </span>
-                                <span className="text-xs bg-gray-100 text-gray-700 rounded-full px-2 py-0.5">
-                                  Weight: {weight}
-                                </span>
+            {statusFilter && (
+              <motion.div 
+                className="flex items-center justify-between p-3 rounded-lg bg-cyber-blue/10 text-cyber-blue border border-cyber-blue/20"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <div className="flex items-center gap-2">
+                  <Filter className="h-5 w-5" />
+                  <p className="font-semibold">
+                    Filtered by: {getStatusLabel(statusFilter)}
+                  </p>
+                </div>
+                <Button variant="ghost" size="sm" onClick={clearFilter} className="flex items-center gap-1.5">
+                  <X className="h-4 w-4" />
+                  Clear
+                </Button>
+              </motion.div>
+            )}
+
+            {filteredDomainGroups.length > 0 
+              ? filteredDomainGroups.map(([domain, domainControls]) => (
+                <Card key={domain} className="mb-6 overflow-hidden">
+                  <CardHeader className="pb-3 bg-gray-50">
+                    <CardTitle className="text-lg font-medium">{domain}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="divide-y">
+                      {domainControls.map(control => {
+                        const result = assessment.results.find(r => r.controlId === control.id);
+                        
+                        if (!result) return null;
+                        
+                        const weight = getControlWeight(control.id);
+                        
+                        return (
+                          <div key={control.id} className="py-4 px-6 hover:bg-gray-50 transition-colors">
+                            <div className="flex flex-col md:flex-row md:justify-between md:items-center">
+                              <div className="flex-1 mb-2 md:mb-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-xs bg-cyber-blue/10 text-cyber-blue rounded-full px-2 py-0.5">
+                                    {control.id}
+                                  </span>
+                                  <span className="text-xs bg-gray-100 text-gray-700 rounded-full px-2 py-0.5">
+                                    Weight: {weight}
+                                  </span>
+                                </div>
+                                <h4 className="font-medium">{control.title}</h4>
                               </div>
-                              <h4 className="font-medium">{control.title}</h4>
+                              <div className="flex items-center gap-2">
+                                {getStatusBadge(result.status)}
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              {getStatusBadge(result.status)}
-                            </div>
+                            {(result.notes || result.evidence) && (
+                              <div className="mt-2 pt-2 border-t text-sm">
+                                {result.notes && (
+                                  <div className="mt-1">
+                                    <span className="font-medium">Notes:</span> {result.notes}
+                                  </div>
+                                )}
+                                {result.evidence && (
+                                  <div className="mt-1">
+                                    <span className="font-medium">Evidence:</span> {result.evidence}
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
-                          {(result.notes || result.evidence) && (
-                            <div className="mt-2 pt-2 border-t text-sm">
-                              {result.notes && (
-                                <div className="mt-1">
-                                  <span className="font-medium">Notes:</span> {result.notes}
-                                </div>
-                              )}
-                              {result.evidence && (
-                                <div className="mt-1">
-                                  <span className="font-medium">Evidence:</span> {result.evidence}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+              : (
+                <div className="text-center py-16 text-gray-500 bg-white rounded-lg shadow-sm">
+                  <p className="text-lg font-medium">No Controls to Display</p>
+                  {statusFilter && <p className="mt-1">No controls match the filter "{getStatusLabel(statusFilter)}".</p>}
+                </div>
+              )
+            }
             
             <div className="flex justify-center mt-8 gap-4">
               <Button 
