@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -160,9 +159,7 @@ const Assessment = () => {
 
   const handleImportControls = (importedControls: Control[]) => {
     // Not yet fully integrated, but import mechanism works
-    toast({
-      description: `Imported ${importedControls.length} CMMC controls.`,
-    });
+    toast(`Imported ${importedControls.length} CMMC controls.`);
   };
 
   if (!assessment || domains.length === 0) {
@@ -320,4 +317,3 @@ const Assessment = () => {
 };
 
 export default Assessment;
-
