@@ -17,6 +17,8 @@ interface ControlAssessmentProps {
   total: number;
 }
 
+const MIN_LEN = 5; // For simple input validation feedback
+
 const ControlAssessment: React.FC<ControlAssessmentProps> = ({
   control,
   result,
@@ -26,28 +28,47 @@ const ControlAssessment: React.FC<ControlAssessmentProps> = ({
 }) => {
   const [expanded, setExpanded] = useState(false);
   const [localResult, setLocalResult] = useState<AssessmentResult>(result);
-  
+  const [error, setError] = useState<string>("");
+
   const handleStatusChange = (status: AssessmentResult['status']) => {
     const updatedResult = { ...localResult, status };
     setLocalResult(updatedResult);
+    setError("");
     onUpdate(updatedResult);
   };
-  
+
   const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const updatedResult = { ...localResult, notes: e.target.value };
     setLocalResult(updatedResult);
+    setError("");
   };
-  
+
   const handleEvidenceChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const updatedResult = { ...localResult, evidence: e.target.value };
     setLocalResult(updatedResult);
+    setError("");
   };
-  
+
+  // Enhanced: require at least 5 chars for either field if filled
+  const validate = () => {
+    if (localResult.evidence && localResult.evidence.length > 0 && localResult.evidence.length < MIN_LEN) {
+      setError("Evidence must be at least 5 characters.");
+      return false;
+    }
+    if (localResult.notes && localResult.notes.length > 0 && localResult.notes.length < MIN_LEN) {
+      setError("Notes must be at least 5 characters.");
+      return false;
+    }
+    setError("");
+    return true;
+  };
+
   const handleSave = () => {
+    if (!validate()) return;
     onUpdate(localResult);
     setExpanded(false);
   };
-  
+
   const getStatusColor = (status: AssessmentResult['status']) => {
     switch (status) {
       case 'compliant':
@@ -62,7 +83,7 @@ const ControlAssessment: React.FC<ControlAssessmentProps> = ({
         return 'bg-gray-100 text-gray-600 border-gray-200';
     }
   };
-  
+
   return (
     <Card className={cn(
       'mb-6 transition-all duration-300',
@@ -88,7 +109,6 @@ const ControlAssessment: React.FC<ControlAssessmentProps> = ({
             </div>
             <CardTitle className="text-lg font-semibold">{control.title}</CardTitle>
           </div>
-          
           <div className={cn(
             'px-3 py-1 rounded-full text-xs font-medium',
             getStatusColor(localResult.status)
@@ -103,7 +123,6 @@ const ControlAssessment: React.FC<ControlAssessmentProps> = ({
           {control.description}
         </CardDescription>
       </CardHeader>
-      
       <CardContent>
         {!expanded ? (
           <Button 
@@ -130,12 +149,10 @@ const ControlAssessment: React.FC<ControlAssessmentProps> = ({
                     <span>Compliant</span>
                   </Label>
                 </div>
-                
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="partially-compliant" id="partially-compliant" />
                   <Label htmlFor="partially-compliant">Partially Compliant</Label>
                 </div>
-                
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="non-compliant" id="non-compliant" />
                   <Label htmlFor="non-compliant" className="flex items-center">
@@ -143,14 +160,12 @@ const ControlAssessment: React.FC<ControlAssessmentProps> = ({
                     <span>Non-Compliant</span>
                   </Label>
                 </div>
-                
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="not-applicable" id="not-applicable" />
                   <Label htmlFor="not-applicable">Not Applicable</Label>
                 </div>
               </RadioGroup>
             </div>
-            
             <div className="space-y-2">
               <Label htmlFor="evidence" className="font-medium text-sm">
                 Evidence (Optional)
@@ -163,7 +178,6 @@ const ControlAssessment: React.FC<ControlAssessmentProps> = ({
                 className="min-h-[80px]"
               />
             </div>
-            
             <div className="space-y-2">
               <Label htmlFor="notes" className="font-medium text-sm">
                 Notes (Optional)
@@ -176,10 +190,10 @@ const ControlAssessment: React.FC<ControlAssessmentProps> = ({
                 className="min-h-[80px]"
               />
             </div>
+            {error && <div className="text-sm text-destructive font-medium">{error}</div>}
           </div>
         )}
       </CardContent>
-      
       {expanded && (
         <CardFooter className="flex justify-end gap-2 pt-2 pb-4">
           <Button 

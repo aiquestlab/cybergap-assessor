@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
-import { ArrowUp, X, Check, FileText } from 'lucide-react';
+import { ArrowUp, X, Check, FileText, HelpCircle } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   getControlsByLevel, 
@@ -19,6 +20,10 @@ import { toast } from 'sonner';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import CMMCDataImporter from '@/components/CMMCDataImporter';
+import AssessmentHelpDialog from '@/components/AssessmentHelpDialog';
+import AssessmentAutoSaveIndicator from '@/components/AssessmentAutoSaveIndicator';
+
+const LOCAL_STORAGE_KEY = "cmmc-assessment";
 
 const Assessment = () => {
   const { level } = useParams<{ level: string }>();
@@ -31,103 +36,135 @@ const Assessment = () => {
   const [domainGroups, setDomainGroups] = useState<Record<string, Control[]>>({});
   const [domains, setDomains] = useState<string[]>([]);
   const [scrollY, setScrollY] = useState(0);
+  const [autosaveStatus, setAutosaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [showHelp, setShowHelp] = useState(false);
   const topRef = useRef<HTMLDivElement>(null);
-  
+
+  // Restore assessment from localStorage if available
+  useEffect(() => {
+    const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (saved) {
+      try {
+        const parsed: AssessmentType = JSON.parse(saved);
+        if (parsed.level === cmmcLevel) {
+          setAssessment(parsed);
+          setOrganizationName(parsed.organizationName || '');
+        }
+      } catch (e) {
+        // Ignore invalid save
+      }
+    }
+  // eslint-disable-next-line
+  }, []);
+
   useEffect(() => {
     if (level !== '1' && level !== '2') {
       navigate('/');
       toast.error('Invalid CMMC level selected');
     }
   }, [level, navigate]);
-  
+
   useEffect(() => {
     const levelControls = getControlsByLevel(cmmcLevel);
     setControls(levelControls);
-    
+
     const grouped = groupControlsByDomain(levelControls);
     setDomainGroups(grouped);
     setDomains(Object.keys(grouped).sort());
-    
+
     if (domains.length > 0 && !activeTab) {
       setActiveTab(domains[0]);
     }
-    
-    const controlIds = levelControls.map(control => control.id);
-    const newAssessment = createAssessment(cmmcLevel, organizationName, controlIds);
-    setAssessment(newAssessment);
+
+    // Only create new assessment if not loaded from localStorage above
+    if (!assessment) {
+      const controlIds = levelControls.map(control => control.id);
+      const newAssessment = createAssessment(cmmcLevel, organizationName, controlIds);
+      setAssessment(newAssessment);
+    }
+  // eslint-disable-next-line
   }, [cmmcLevel]);
-  
+
   useEffect(() => {
     if (domains.length > 0 && !activeTab) {
       setActiveTab(domains[0]);
     }
   }, [domains, activeTab]);
-  
+
   useEffect(() => {
     const handleScroll = () => {
       setScrollY(window.scrollY);
     };
-    
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-  
+
+  // Autosave assessment to localStorage when changed, debounce 700ms
+  useEffect(() => {
+    if (!assessment) return;
+    setAutosaveStatus('saving');
+    const timeout = setTimeout(() => {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({
+        ...assessment,
+        organizationName
+      }));
+      setAutosaveStatus('saved');
+    }, 700);
+    return () => clearTimeout(timeout);
+    // We include organizationName as it's not always inside the assessment object
+  }, [assessment, organizationName]);
+
   const handleOrganizationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setOrganizationName(e.target.value);
     if (assessment) {
       setAssessment({ ...assessment, organizationName: e.target.value });
     }
   };
-  
+
   const handleUpdateResult = (controlId: string, result: any) => {
     if (!assessment) return;
-    
     const updatedAssessment = {
       ...assessment,
       results: assessment.results.map(r => 
         r.controlId === controlId ? { ...result } : r
       )
     };
-    
     setAssessment(updatedAssessment);
   };
-  
+
   const getCompletionPercentage = () => {
     if (!assessment) return 0;
-    
     const totalControls = assessment.results.length;
     const assessedControls = assessment.results.filter(
       r => r.status !== 'non-compliant' || r.evidence || r.notes
     ).length;
-    
     return Math.round((assessedControls / totalControls) * 100);
   };
-  
+
   const handleSubmit = () => {
     if (!assessment) return;
-    
     if (!organizationName.trim()) {
       toast.error('Please enter your organization name');
       return;
     }
-    
-    sessionStorage.setItem('assessment', JSON.stringify(assessment));
+    // Save complete assessment to session and local
+    sessionStorage.setItem('assessment', JSON.stringify({ ...assessment, organizationName }));
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ ...assessment, organizationName }));
     navigate('/results');
     toast.success('Assessment completed successfully!');
   };
-  
+
   const scrollToTop = () => {
     topRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
-  
+
   const handleImportControls = (importedControls: Control[]) => {
-    console.log('Imported controls:', importedControls);
-    
+    // Not yet fully integrated, but import mechanism works
     toast({
       description: `Imported ${importedControls.length} CMMC controls.`,
     });
   };
-  
+
   if (!assessment || domains.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -138,7 +175,7 @@ const Assessment = () => {
       </div>
     );
   }
-  
+
   return (
     <div className="min-h-screen bg-gray-50" ref={topRef}>
       <header className="sticky top-0 z-10 bg-white shadow-sm border-b">
@@ -158,7 +195,6 @@ const Assessment = () => {
               <p className="text-sm text-gray-500">{controls.length} controls</p>
             </div>
           </div>
-          
           <div className="flex items-center gap-2">
             <Popover>
               <PopoverTrigger asChild>
@@ -177,7 +213,16 @@ const Assessment = () => {
                 </div>
               </PopoverContent>
             </Popover>
-            
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-full"
+              aria-label="Help"
+              onClick={() => setShowHelp(true)}
+            >
+              <HelpCircle className="text-gray-500" size={20} />
+            </Button>
+            <AssessmentAutoSaveIndicator status={autosaveStatus} />
             <Button 
               size="sm" 
               onClick={handleSubmit}
@@ -189,7 +234,6 @@ const Assessment = () => {
           </div>
         </div>
       </header>
-      
       <main className="container max-w-5xl mx-auto px-4 py-8">
         <Card className="mb-8 glass-card animate-scale-in">
           <CardHeader className="pb-3">
@@ -210,7 +254,6 @@ const Assessment = () => {
             </div>
           </CardContent>
         </Card>
-        
         <div className="mb-6">
           <h2 className="text-xl font-semibold mb-4">Controls Assessment</h2>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -232,7 +275,6 @@ const Assessment = () => {
                 </TabsList>
               </div>
             </div>
-            
             {domains.map(domain => (
               <TabsContent key={domain} value={domain} className="pt-4 animate-fade-in">
                 <div className="mb-4">
@@ -244,7 +286,6 @@ const Assessment = () => {
                   </div>
                   <Separator className="mt-2" />
                 </div>
-                
                 <div className="space-y-4">
                   {domainGroups[domain].map((control, index) => (
                     <ControlAssessment
@@ -262,11 +303,10 @@ const Assessment = () => {
           </Tabs>
         </div>
       </main>
-      
       <div className="mb-6">
         <CMMCDataImporter onImport={handleImportControls} />
       </div>
-      
+      <AssessmentHelpDialog open={showHelp} onOpenChange={setShowHelp} />
       {scrollY > 300 && (
         <Button
           className="fixed bottom-6 right-6 rounded-full w-12 h-12 bg-cyber-blue/90 hover:bg-cyber-blue shadow-lg"
@@ -280,3 +320,4 @@ const Assessment = () => {
 };
 
 export default Assessment;
+
